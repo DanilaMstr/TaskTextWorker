@@ -13,19 +13,18 @@ namespace TaskTextWorker
     class TextWorker
     {
         private ConcurrentDictionary<string, ushort> pairs = new ConcurrentDictionary<string, ushort>();
-        //private Dictionary<string, ushort> pairs = new Dictionary<string, ushort>();
         private int countCharacter;
-        //private List<string> text;
         private ConcurrentBag<string> text;
-        private bool isPressKey = false;
 
         public string GetStatistics(
             List<string> text, 
             int countTop = 10,
             int countCharacter=3)
         {
+            if (text.Count == 0)
+                return "Empty";
+
             pairs.Clear();
-            //this.text = text;
             this.text = new ConcurrentBag<string>(text);
             this.countCharacter = countCharacter;
 
@@ -36,27 +35,37 @@ namespace TaskTextWorker
 
         private void Start()
         {
-            text.AsParallel()
-                .Where(str => str.Length >= countCharacter &&
-                                    Regex.IsMatch(str, "^[A-ZА-Я]+$")
-                                    && !isPressKey)
-                .ForAll(str =>
-                {
-                    //CheckPressKeyOnKeyBord();
-                    checkNode(str);
-                });
-        }
+            CancellationTokenSource cts = new CancellationTokenSource();
+            ParallelOptions po = new ParallelOptions();
+            po.CancellationToken = cts.Token;
 
-        async private void CheckPressKeyOnKeyBord()
-        {
-            await Task.Run(() => 
+            Task.Factory.StartNew(() =>
             {
-                ConsoleKeyInfo key = Console.ReadKey(true);
-                if (key.Key != ConsoleKey.Enter)
-                {
-                    isPressKey = true;
-                }
+                Console.WriteLine("Press any key to exit");
+                Console.ReadKey(true);
+                    cts.Cancel();
             });
+
+            try
+            {
+                Parallel.ForEach(text
+                    .Where(str => str.Length >= countCharacter && 
+                        Regex.IsMatch(str, "^[A-ZА-Я]+$")), 
+                                 po, 
+                                 (str) => 
+                                 {
+                                     checkNode(str);
+                                     po.CancellationToken.ThrowIfCancellationRequested();
+                                 });
+            }
+            catch (OperationCanceledException ex)
+            {
+                Console.WriteLine("Operation was interrupted");
+            }
+            finally
+            {
+                cts.Dispose();
+            }
         }
 
         private string gerResultOnString(int countTop)
@@ -65,7 +74,7 @@ namespace TaskTextWorker
 
             foreach (var i in pairs.OrderByDescending(p => p.Value).Take(countTop))
                 res += i.Key + ", ";
-
+            res = res.Remove(res.Length - 1);
             return res;
         }
 

@@ -26,9 +26,11 @@ namespace TaskTextWorker
             }
             else
             {
+                Console.WriteLine($"Reading file {filePath}");
                 string readText = File.ReadAllText(filePath).ToUpper();
                 readText = readText.Replace("\r\n"," ");
                 res = readText.Split(' ').ToList();
+                Console.WriteLine($"File read successfully");
             }
             return res;
         }
