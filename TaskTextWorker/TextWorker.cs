@@ -12,7 +12,7 @@ namespace TaskTextWorker
 {
     class TextWorker
     {
-        private ConcurrentDictionary<string, ushort> pairs = new ConcurrentDictionary<string, ushort>();
+        private ConcurrentDictionary<string, int> pairs = new ConcurrentDictionary<string, int>();
         private int countCharacter;
         private ConcurrentBag<string> text;
 
@@ -49,8 +49,7 @@ namespace TaskTextWorker
             try
             {
                 Parallel.ForEach(text
-                    .Where(str => str.Length >= countCharacter && 
-                        Regex.IsMatch(str, "^[A-ZА-Я]+$")), 
+                    .Where(str => str.Length >= countCharacter), 
                                  po, 
                                  (str) => 
                                  {
@@ -86,10 +85,7 @@ namespace TaskTextWorker
             {
                 string characters = getConcatStrings(node.Skip(countSkip).Take(countCharacter).ToList());
                 countSkip++;
-                if (pairs.ContainsKey(characters))
-                    pairs[characters]++;
-                else
-                    pairs.TryAdd(characters, 1);
+                pairs.AddOrUpdate(characters, 1, (key, oldValue) => oldValue + 1);
             }
         }
         private string getConcatStrings(List<char> strings)
